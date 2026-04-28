@@ -1,7 +1,7 @@
 [project]
-name = "blahDict"
+name = "dictor"
 version = "0.1.0"
-description = "A NVDA addon for looking up words in dictionary"
+description = "A NVDA english dictionary addon which allows users to look up definitions for the word located under the review cursor within the current navigator object."
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = []

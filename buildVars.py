@@ -14,15 +14,15 @@ from site_scons.site_tools.NVDATool.utils import _
 # Add-on information variables
 addon_info = AddonInfo(
 	# Name/identifier
-	addon_name="blahDict",
+	addon_name="dictor",
 	# Summary/title
 	# Translators: Summary/title for this add-on
 	# to be shown on installation and add-on information found in add-on store
-	addon_summary=_("Blah Dict"),
+	addon_summary=_("Dictor"),
 	# Add-on description
 	# Translators: Long description to be shown for this add-on on add-on information from add-on store
 	addon_description=_(
-		"Look up the dictionary definitions for the word of the current navigator object where the review cursor is situated."
+		"A simple dictionary which allows you to look up definitions for the word located under the review cursor within the current navigator object."
 	),
 	# version
 	addon_version="0.1.0",
