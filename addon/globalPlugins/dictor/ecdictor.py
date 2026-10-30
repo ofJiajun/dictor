@@ -6,12 +6,14 @@ Github: https://github.com/skywind3000/ECDICT
 import json
 import sys
 from pathlib import Path
+from typing import Any, Optional
 
+# Use sqlite to query words
 sys.path.append(str(Path(__file__).parent / "libs"))
 import sqlite3
 
 
-EXCHANGE: dict[str, str] = {
+INFLECTION: dict[str, str] = {
 	"p": "Past tense",
 	"d": "Past participle",
 	"i": "Present participle",
@@ -41,26 +43,30 @@ POSITION: dict[str, str] = {
 }
 
 
-ECDICT = Path(__file__).parent / "dicts" / "ecdict.db3"
-LEMMA = Path(__file__).parent / "dicts" / "lemma.txt"
+# Data path
+# ECDICT = Path(__file__).parent.parent.parent / "dicts" / "ecdict.db3"
+ECDICT = r"C:\Users\celer\AppData\Roaming\nvda\scratchpad\dicts\ecdict.db3"
+# LEMMA = Path(__file__).parent.parent.parent / "dicts" / "lemma.txt"
+LEMMA = r"C:\Users\celer\AppData\Roaming\nvda\scratchpad\dicts\lemma.txt"
 
 unicode = str
 long = int
-xrange = range
 
 
-def stripword(word):
+def stripword(word: str) -> str:
 	return ("".join([n for n in word if n.isalnum()])).lower()
 
 
 class Ecdictor(object):
-	def __init__(self, filename=ECDICT, verbose=False):
+	def __init__(self, filename: str = ECDICT):
 		self.__dbname = filename
 		self.__conn = None
-		self.__verbose = verbose
+		self.__fields = None
+		self.__enable = None
+		self.__names = {}
 		self.__open()
 
-	def __open(self):
+	def __open(self) -> bool:
 		sql = """
         CREATE TABLE IF NOT EXISTS "stardict" (
             "id" INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL UNIQUE,
@@ -112,13 +118,12 @@ class Ecdictor(object):
 			"audio",
 		)
 		self.__fields = tuple([(fields[i], i) for i in range(len(fields))])
-		self.__names = {}
 		for k, v in self.__fields:
 			self.__names[k] = v
 		self.__enable = self.__fields[3:]
 		return True
 
-	def __record2obj(self, record):
+	def __record2obj(self, record: Any) -> dict[str, Any] | None:
 		if record is None:
 			return None
 		word = {}
@@ -141,13 +146,7 @@ class Ecdictor(object):
 	def __del__(self):
 		self.close()
 
-	# Print logs
-	def out(self, text):
-		if self.__verbose:
-			print(text)
-		return True
-
-	def query(self, key):
+	def query(self, key: str) -> dict[str, Any]:
 		c = self.__conn.cursor()
 		record = None
 		if isinstance(key, int) or isinstance(key, long):
@@ -159,7 +158,7 @@ class Ecdictor(object):
 		record = c.fetchone()
 		return self.__record2obj(record)
 
-	def match(self, word, limit=10, strip=False):
+	def match(self, word: str, limit: int = 10, strip: bool = False) -> list[tuple[int, str]]:
 		c = self.__conn.cursor()
 		if not strip:
 			sql = "select id, word from stardict where word >= ? "
@@ -175,7 +174,7 @@ class Ecdictor(object):
 			result.append(tuple(record))
 		return result
 
-	def query_batch(self, keys):
+	def query_batch(self, keys: list[str]) -> tuple[dict[str, Any]]:
 		sql = "select * from stardict where "
 		if keys is None:
 			return None
@@ -206,13 +205,13 @@ class Ecdictor(object):
 				results.append(None)
 		return tuple(results)
 
-	def count(self):
+	def count(self) -> int:
 		c = self.__conn.cursor()
 		c.execute("select count(*) from stardict;")
 		record = c.fetchone()
 		return record[0]
 
-	def register(self, word, items, commit=True):
+	def register(self, word: str, items: dict, commit: bool = True) -> bool:
 		sql = "INSERT INTO stardict(word, sw) VALUES(?, ?);"
 		try:
 			self.__conn.execute(sql, (word, stripword(word)))
@@ -225,7 +224,7 @@ class Ecdictor(object):
 		self.update(word, items, commit)
 		return True
 
-	def remove(self, key, commit=True):
+	def remove(self, key: str, commit: bool = True) -> bool:
 		if isinstance(key, int) or isinstance(key, long):
 			sql = "DELETE FROM stardict WHERE id=?;"
 		else:
@@ -238,7 +237,7 @@ class Ecdictor(object):
 			return False
 		return True
 
-	def delete_all(self, reset_id=False):
+	def delete_all(self, reset_id: bool = False) -> bool:
 		sql1 = "DELETE FROM stardict;"
 		sql2 = "UPDATE sqlite_sequence SET seq = 0 WHERE name = 'stardict';"
 		try:
@@ -254,7 +253,7 @@ class Ecdictor(object):
 			return False
 		return True
 
-	def update(self, key, items, commit=True):
+	def update(self, key: str, items: dict, commit: bool = True) -> bool:
 		names = []
 		values = []
 		for name, id in self.__enable:
@@ -301,7 +300,7 @@ class Ecdictor(object):
 	def __getitem__(self, key):
 		return self.query(key)
 
-	def commit(self):
+	def commit(self) -> bool:
 		try:
 			self.__conn.commit()
 		except sqlite3.IntegrityError:
@@ -309,18 +308,18 @@ class Ecdictor(object):
 			return False
 		return True
 
-	def dumps(self):
+	def dumps(self) -> list[str]:
 		return [n for _, n in self.__iter__()]
 
 
 class Lemmatizer(object):
-	def __init__(self, filename=LEMMA, encoding=None):
+	def __init__(self, filename: str = LEMMA, encoding: str = None):
 		self._stems = {}
 		self._words = {}
 		self._frqs = {}
 		self.load(filename, encoding)
 
-	def load(self, filename, encoding=None):
+	def load(self, filename: str, encoding: str = None):
 		content = open(filename, "rb").read()
 		if content[:3] == b"\xef\xbb\xbf":
 			content = content[3:].decode("utf-8", "ignore")
@@ -365,7 +364,7 @@ class Lemmatizer(object):
 				self.add(stem, word.strip())
 		return True
 
-	def save(self, filename, encoding="utf-8"):
+	def save(self, filename: str, encoding: str = "utf-8") -> bool:
 		stems = list(self._stems.keys())
 		stems.sort(key=lambda x: x.lower())
 		import codecs
@@ -386,7 +385,7 @@ class Lemmatizer(object):
 		fp.close()
 		return True
 
-	def add(self, stem, word):
+	def add(self, stem: str, word: str) -> bool:
 		if stem not in self._stems:
 			self._stems[stem] = {}
 		if word not in self._stems[stem]:
@@ -397,7 +396,7 @@ class Lemmatizer(object):
 			self._words[word][stem] = len(self._words[word])
 		return True
 
-	def remove(self, stem, word):
+	def remove(self, stem: str, word: str) -> bool:
 		count = 0
 		if stem in self._stems:
 			if word in self._stems[stem]:
@@ -413,12 +412,12 @@ class Lemmatizer(object):
 				del self._words[word]
 		return (count > 0) and True or False
 
-	def reset(self):
+	def reset(self) -> bool:
 		self._stems = {}
 		self._words = {}
 		return True
 
-	def get(self, word, reverse=False):
+	def get(self, word: str, reverse: bool = False) -> Optional[list[str]]:
 		if not reverse:
 			if word not in self._stems:
 				if word in self._words:
@@ -434,16 +433,16 @@ class Lemmatizer(object):
 		words.sort()
 		return [k for (v, k) in words]
 
-	def word_stem(self, word):
+	def word_stem(self, word: str) -> Optional[list[str]]:
 		return self.get(word, reverse=True)
 
-	def stem_size(self):
+	def stem_size(self) -> int:
 		return len(self._stems)
 
-	def word_size(self):
+	def word_size(self) -> int:
 		return len(self._words)
 
-	def dump(self, what="ALL"):
+	def dump(self, what: str = "ALL") -> dict[str, int]:
 		words = {}
 		what = what.lower()
 		if what in ("all", "stem"):

@@ -1,25 +1,44 @@
+import re
+from typing import override
+
 import api
+import addonHandler
 import globalPluginHandler
 import inputCore
-import addonHandler
-from logHandler import log
 import scriptHandler
-from scriptHandler import script
-import re
-import textInfos
+import speech
 import ui
+from logHandler import log
+from scriptHandler import script
 
-
-from .ecdictor import Ecdictor, Lemmatizer, EXCHANGE, POSITION
-
+from .ecdictor import INFLECTION, POSITION, Ecdictor, Lemmatizer
 
 addonHandler.initTranslation()
 
 ABSENCE: str = "Absence"
+NO_RESULT: str = "No result"
+separator = re.compile(r"[\u4e00-\uf95a]+|[A-Z]?[a-z]+|[A-Z]+(?=[A-Z][a-z])|[0-9]+|[A-Z]+(?![A-Z])")
 
 
-def clean_word(word):
-	cleaned = re.sub(r"^[^a-zA-Z]*|[^a-zA-Z]*$", "", word)
+def splitWord(text: str):
+	words = []
+	positions = []
+	for word in separator.finditer(text):
+		start = word.start()
+		end = word.end()
+		words.append(word.string[start:end])
+		positions.append(start)
+	if not words:
+		words.append(text)
+		positions.append(0)
+	return words, positions
+
+
+clean = re.compile(r"^[^a-zA-Z]*|[^a-zA-Z]*$")
+
+
+def clean_word(word: str):
+	cleaned = re.sub(clean, "", word)
 	return cleaned
 
 
@@ -27,16 +46,18 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 	def __init__(self):
 		super().__init__()
 		try:
-			self.dict = Ecdictor()
-			self.lemma = Lemmatizer()
-		except Exception as e:
+			self.dict: Ecdictor | None = Ecdictor()
+			self.lemma: Lemmatizer | None = Lemmatizer()
+		except IOError as e:
 			log.error("Fail to load dict database.")
 			log.debug(e)
 			self.terminate()
 
+	@override
 	def terminate(self):
 		super().terminate()
-		self.dict.close()
+		if self.dict:
+			self.dict.close()
 		self.dict = None
 		self.lemma = None
 
@@ -48,22 +69,34 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		gestures=("kb:NVDA+w", "kb(laptop):NVDA+w"),
 		speakOnDemand=True,
 	)
-	def script_GetDictorDefinition(self, gesture: inputCore.InputGesture):
-		info: textInfos.TextInfo = api.getReviewPosition().copy()
-		info.expand(textInfos.UNIT_WORD)
+	def script_translateLastSpeechWord(self, gesture: "inputCore.InputGesture"):
+		lastSpeech = speech.speech._lastSpeech
+		if lastSpeech is None:
+			return
+
+		lastSpeechSeq, symbolLevel = lastSpeech
+		lastSpeechText = " ".join(i for i in lastSpeechSeq if isinstance(i, str))
+		words, position = splitWord(lastSpeechText)
+		if not words:
+			return
+
 		try:
-			simplification, detail = self.getDefinition(info.text)
+			simplification, detail = self.getDefinition(words[0])
 		except Exception as e:
-			ui.message("No result")
+			ui.message(NO_RESULT)
 			log.error("Error occured when getting definition.")
 			log.debug(e)
+			return
+
+		if simplification is None or detail is None:
+			ui.message(lastSpeechText)
 			return
 
 		scriptCount = scriptHandler.getLastScriptRepeatCount()
 		if scriptCount == 0:
 			ui.message(simplification)
 		else:
-			ui.browseableMessage(detail, title=info.text, isHtml=True)
+			ui.browseableMessage(detail, title=words[0], isHtml=True)
 
 	def getDefinition(self, keyword: str) -> tuple[str, str]:
 		keyword: str = clean_word(keyword)
@@ -71,17 +104,16 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		if not result:
 			stem: list[str] = self.lemma.word_stem(keyword)
 			if not stem:
-				return ("No result", "No result")
+				return (None, None)
 			result = self.dict.query(stem[0])
 
 		word: str = result["word"]
 		phonetic: str = f"/{result['phonetic']}/" if result["phonetic"] else ABSENCE
-		definition: list[str] = (
-			result["definition"].split("\n") if result["definition"].split("\n") else [ABSENCE]
-		)
-		translation: list[str] = (
-			result["translation"].split("\n") if result["translation"].split("\n") else [ABSENCE]
-		)
+		definition: list[str] = result["definition"].split("\n") if result["definition"] else [ABSENCE]
+		for i, d in enumerate(definition):
+			if d.startswith("s."):
+				definition[i] = f"a.{d[2:]}"
+		translation: list[str] = result["translation"].split("\n") if result["translation"] else [ABSENCE]
 		pos: list[str] = result["pos"].split("/") if result["pos"] else []
 		position: list[str] = []
 		if pos:
@@ -98,7 +130,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		if exch:
 			for e in exch:
 				c, f = e.split(":")
-				c = EXCHANGE[c]
+				c = INFLECTION[c]
 				exchange.append(f"<li>{c}: {f}</li>")
 		else:
 			exchange.append(ABSENCE)
@@ -106,7 +138,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		frq: int = result["frq"]
 		bnc: int = result["bnc"]
 
-		simplification: str = f"{word}: {'; '.join(definition)}"
+		simplification: str = f"{word}: {'; '.join(definition)}\n {'; '.join(translation)}"
 		detail: str = f"""
 			<h2>{word}</h2>
 			<p>
