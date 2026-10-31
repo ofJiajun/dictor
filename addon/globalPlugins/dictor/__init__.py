@@ -1,4 +1,3 @@
-import re
 from typing import override
 
 import api
@@ -11,42 +10,21 @@ import ui
 from logHandler import log
 from scriptHandler import script
 
-from .ecdictor import INFLECTION, POSITION, Ecdictor, Lemmatizer
+from .DictTool import INFLECTION, POSITION, Dictionary, Lemmatizer
+from .generalTool import cleanWord, splitWord
 
 addonHandler.initTranslation()
 
+# Constants
 ABSENCE: str = "Absence"
 NO_RESULT: str = "No result"
-separator = re.compile(r"[\u4e00-\uf95a]+|[A-Z]?[a-z]+|[A-Z]+(?=[A-Z][a-z])|[0-9]+|[A-Z]+(?![A-Z])")
-
-
-def splitWord(text: str):
-	words = []
-	positions = []
-	for word in separator.finditer(text):
-		start = word.start()
-		end = word.end()
-		words.append(word.string[start:end])
-		positions.append(start)
-	if not words:
-		words.append(text)
-		positions.append(0)
-	return words, positions
-
-
-clean = re.compile(r"^[^a-zA-Z]*|[^a-zA-Z]*$")
-
-
-def clean_word(word: str):
-	cleaned = re.sub(clean, "", word)
-	return cleaned
 
 
 class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 	def __init__(self):
 		super().__init__()
 		try:
-			self.dict: Ecdictor | None = Ecdictor()
+			self.dict: Dictionary | None = Dictionary()
 			self.lemma: Lemmatizer | None = Lemmatizer()
 		except IOError as e:
 			log.error("Fail to load dict database.")
@@ -98,23 +76,33 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		else:
 			ui.browseableMessage(detail, title=words[0], isHtml=True)
 
-	def getDefinition(self, keyword: str) -> tuple[str, str]:
-		keyword: str = clean_word(keyword)
-		result: dict[str] = self.dict.query(keyword)
+	def getDefinition(self, keyword: str) -> tuple[str | None, str | None]:
+		keyword: str = cleanWord(keyword)
+		if not keyword:
+			return (None, None)
+
+		result: dict[str, any] = self.dict.query(keyword)
 		if not result:
 			stem: list[str] = self.lemma.word_stem(keyword)
 			if not stem:
 				return (None, None)
 			result = self.dict.query(stem[0])
 
-		word: str = result["word"]
-		phonetic: str = f"/{result['phonetic']}/" if result["phonetic"] else ABSENCE
-		definition: list[str] = result["definition"].split("\n") if result["definition"] else [ABSENCE]
+		return self.getFinalResult(result)
+
+	def getFinalResult(self, item: dict[str, any]) -> tuple[str, str]:
+		word: str = item["word"]
+
+		phonetic: str = f"/{item['phonetic']}/" if item["phonetic"] else ABSENCE
+
+		definition: list[str] = item["definition"].split("\n") if item["definition"] else [ABSENCE]
 		for i, d in enumerate(definition):
 			if d.startswith("s."):
 				definition[i] = f"a.{d[2:]}"
-		translation: list[str] = result["translation"].split("\n") if result["translation"] else [ABSENCE]
-		pos: list[str] = result["pos"].split("/") if result["pos"] else []
+
+		translation: list[str] = item["translation"].split("\n") if item["translation"] else [ABSENCE]
+
+		pos: list[str] = item["pos"].split("/") if item["pos"] else []
 		position: list[str] = []
 		if pos:
 			for p in pos:
@@ -125,20 +113,24 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		else:
 			position.append("Absence.")
 
-		exch: list[str] = result["exchange"].split("/") if result["exchange"] else []
-		exchange: list[str] = []
-		if exch:
-			for e in exch:
+		infl: list[str] = item["transformation"].split("/") if item["transformation"] else []
+		inflection: list[str] = []
+		if infl:
+			for e in infl:
 				c, f = e.split(":")
 				c = INFLECTION[c]
-				exchange.append(f"<li>{c}: {f}</li>")
+				inflection.append(f"<li>{c}: {f}</li>")
 		else:
-			exchange.append(ABSENCE)
+			inflection.append(ABSENCE)
 
-		frq: int = result["frq"]
-		bnc: int = result["bnc"]
+		coca: int = item["coca"]
+		bnc: int = item["bnc"]
+
+		oxfordLevel: int = item["oxford"]
+		collinsLevel: int = item["collins"]
 
 		simplification: str = f"{word}: {'; '.join(definition)}\n {'; '.join(translation)}"
+
 		detail: str = f"""
 			<h2>{word}</h2>
 			<p>
@@ -146,7 +138,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 			</p>
 			<h3>Forms</h3>
 			<ul>
-			{" ".join(exchange)}
+			{" ".join(inflection)}
 			</ul>
 			<h3>Definition</h3>
 			<ul>
@@ -162,9 +154,14 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 			</ul>
 			<h3>Word Frequency</h3>
 			<ul>
-			<li>COCA: {frq}</li>
+			<li>COCA: {coca}</li>
 			<li>BNC: {bnc}</li>
 			</ul
+			<h3>Level</h3>
+			<ul>
+			<li>Oxford: {oxfordLevel}</lli>
+			<li>Collins: {collinsLevel}</li>
+			</ul>
 		"""
 
 		return (simplification, detail)

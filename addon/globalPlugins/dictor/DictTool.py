@@ -3,7 +3,6 @@ The module based on the project ECDICT -- a Free English to Chinese Dictionary D
 Github: https://github.com/skywind3000/ECDICT
 """
 
-import json
 import sys
 from pathlib import Path
 from typing import Any, Optional
@@ -42,11 +41,8 @@ POSITION: dict[str, str] = {
 	"s": "Adjective",
 }
 
-
 # Data path
-# ECDICT = Path(__file__).parent.parent.parent / "dicts" / "ecdict.db3"
-ECDICT = r"C:\Users\celer\AppData\Roaming\nvda\scratchpad\dicts\ecdict.db3"
-# LEMMA = Path(__file__).parent.parent.parent / "dicts" / "lemma.txt"
+DICT = r"C:\Users\celer\AppData\Roaming\nvda\scratchpad\dicts\dictor.db"
 LEMMA = r"C:\Users\celer\AppData\Roaming\nvda\scratchpad\dicts\lemma.txt"
 
 unicode = str
@@ -57,8 +53,8 @@ def stripword(word: str) -> str:
 	return ("".join([n for n in word if n.isalnum()])).lower()
 
 
-class Ecdictor(object):
-	def __init__(self, filename: str = ECDICT):
+class Dictionary(object):
+	def __init__(self, filename: str = DICT):
 		self.__dbname = filename
 		self.__conn = None
 		self.__fields = None
@@ -67,38 +63,7 @@ class Ecdictor(object):
 		self.__open()
 
 	def __open(self) -> bool:
-		sql = """
-        CREATE TABLE IF NOT EXISTS "stardict" (
-            "id" INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL UNIQUE,
-            "word" VARCHAR(64) COLLATE NOCASE NOT NULL UNIQUE,
-            "sw" VARCHAR(64) COLLATE NOCASE NOT NULL,
-            "phonetic" VARCHAR(64),
-            "definition" TEXT,
-            "translation" TEXT,
-            "pos" VARCHAR(16),
-            "collins" INTEGER DEFAULT(0),
-            "oxford" INTEGER DEFAULT(0),
-            "tag" VARCHAR(64),
-            "bnc" INTEGER DEFAULT(NULL),
-            "frq" INTEGER DEFAULT(NULL),
-            "exchange" TEXT,
-            "detail" TEXT,
-            "audio" TEXT
-        );
-        CREATE UNIQUE INDEX IF NOT EXISTS "stardict_1" ON stardict (id);
-        CREATE UNIQUE INDEX IF NOT EXISTS "stardict_2" ON stardict (word);
-        CREATE INDEX IF NOT EXISTS "stardict_3" ON stardict (sw, word collate nocase);
-        CREATE INDEX IF NOT EXISTS "sd_1" ON stardict (word collate nocase);
-        """
-
 		self.__conn = sqlite3.connect(self.__dbname, isolation_level="IMMEDIATE")
-		self.__conn.isolation_level = "IMMEDIATE"
-
-		sql = "\n".join([n.strip("\t") for n in sql.split("\n")])
-		sql = sql.strip("\n")
-
-		self.__conn.executescript(sql)
-		self.__conn.commit()
 
 		fields = (
 			"id",
@@ -110,12 +75,9 @@ class Ecdictor(object):
 			"pos",
 			"collins",
 			"oxford",
-			"tag",
 			"bnc",
-			"frq",
-			"exchange",
-			"detail",
-			"audio",
+			"coca",
+			"transformation",
 		)
 		self.__fields = tuple([(fields[i], i) for i in range(len(fields))])
 		for k, v in self.__fields:
@@ -129,13 +91,6 @@ class Ecdictor(object):
 		word = {}
 		for k, v in self.__fields:
 			word[k] = record[v]
-		if word["detail"]:
-			text = word["detail"]
-			try:
-				obj = json.loads(text)
-			except Exception:
-				obj = None
-			word["detail"] = obj
 		return word
 
 	def close(self):
@@ -150,9 +105,9 @@ class Ecdictor(object):
 		c = self.__conn.cursor()
 		record = None
 		if isinstance(key, int) or isinstance(key, long):
-			c.execute("select * from stardict where id = ?;", (key,))
+			c.execute("select * from dictor where id = ?;", (key,))
 		elif isinstance(key, str) or isinstance(key, unicode):
-			c.execute("select * from stardict where word = ?", (key,))
+			c.execute("select * from dictor where word = ?", (key,))
 		else:
 			return None
 		record = c.fetchone()
@@ -161,11 +116,11 @@ class Ecdictor(object):
 	def match(self, word: str, limit: int = 10, strip: bool = False) -> list[tuple[int, str]]:
 		c = self.__conn.cursor()
 		if not strip:
-			sql = "select id, word from stardict where word >= ? "
+			sql = "select id, word from dictor where word >= ? "
 			sql += "order by word collate nocase limit ?;"
 			c.execute(sql, (word, limit))
 		else:
-			sql = "select id, word from stardict where sw >= ? "
+			sql = "select id, word from dictor where sw >= ? "
 			sql += "order by sw, word collate nocase limit ?;"
 			c.execute(sql, (stripword(word), limit))
 		records = c.fetchall()
@@ -175,7 +130,7 @@ class Ecdictor(object):
 		return result
 
 	def query_batch(self, keys: list[str]) -> tuple[dict[str, Any]]:
-		sql = "select * from stardict where "
+		sql = "select * from dictor where "
 		if keys is None:
 			return None
 		if not keys:
@@ -207,12 +162,12 @@ class Ecdictor(object):
 
 	def count(self) -> int:
 		c = self.__conn.cursor()
-		c.execute("select count(*) from stardict;")
+		c.execute("select count(*) from dictor;")
 		record = c.fetchone()
 		return record[0]
 
 	def register(self, word: str, items: dict, commit: bool = True) -> bool:
-		sql = "INSERT INTO stardict(word, sw) VALUES(?, ?);"
+		sql = "INSERT INTO dictor(word, sw) VALUES(?, ?);"
 		try:
 			self.__conn.execute(sql, (word, stripword(word)))
 		except sqlite3.IntegrityError as e:
@@ -226,9 +181,9 @@ class Ecdictor(object):
 
 	def remove(self, key: str, commit: bool = True) -> bool:
 		if isinstance(key, int) or isinstance(key, long):
-			sql = "DELETE FROM stardict WHERE id=?;"
+			sql = "DELETE FROM dictor WHERE id=?;"
 		else:
-			sql = "DELETE FROM stardict WHERE word=?;"
+			sql = "DELETE FROM dictor WHERE word=?;"
 		try:
 			self.__conn.execute(sql, (key,))
 			if commit:
@@ -238,8 +193,8 @@ class Ecdictor(object):
 		return True
 
 	def delete_all(self, reset_id: bool = False) -> bool:
-		sql1 = "DELETE FROM stardict;"
-		sql2 = "UPDATE sqlite_sequence SET seq = 0 WHERE name = 'stardict';"
+		sql1 = "DELETE FROM dictor;"
+		sql2 = "UPDATE sqlite_sequence SET seq = 0 WHERE name = 'dictor';"
 		try:
 			self.__conn.execute(sql1)
 			if reset_id:
@@ -260,9 +215,6 @@ class Ecdictor(object):
 			if name in items:
 				names.append(name)
 				value = items[name]
-				if name == "detail":
-					if value is not None:
-						value = json.dumps(value, ensure_ascii=False)
 				values.append(value)
 		if len(names) == 0:
 			if commit:
@@ -271,7 +223,7 @@ class Ecdictor(object):
 				except sqlite3.IntegrityError:
 					return False
 			return False
-		sql = "UPDATE stardict SET " + ", ".join(["%s=?" % n for n in names])
+		sql = "UPDATE dictor SET " + ", ".join(["%s=?" % n for n in names])
 		if isinstance(key, str) or isinstance(key, unicode):
 			sql += " WHERE word=?;"
 		else:
@@ -286,7 +238,7 @@ class Ecdictor(object):
 
 	def __iter__(self):
 		c = self.__conn.cursor()
-		sql = 'select "id", "word" from "stardict"'
+		sql = 'select "id", "word" from "dictor"'
 		sql += ' order by "word" collate nocase;'
 		c.execute(sql)
 		return c.__iter__()
