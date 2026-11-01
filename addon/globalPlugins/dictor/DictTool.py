@@ -42,8 +42,8 @@ POSITION: dict[str, str] = {
 }
 
 # Data path
-DICT = r"C:\Users\celer\AppData\Roaming\nvda\scratchpad\dicts\dictor.db"
-LEMMA = r"C:\Users\celer\AppData\Roaming\nvda\scratchpad\dicts\lemma.txt"
+DICT = Path(__file__).parent.parent.parent / "dicts" / "dictor.db"
+LEMMA = Path(__file__).parent.parent.parent / "dicts" / "lemma.txt"
 
 unicode = str
 long = int
@@ -63,7 +63,35 @@ class Dictionary(object):
 		self.__open()
 
 	def __open(self) -> bool:
+		sql = """
+		CREATE TABLE IF NOT EXISTS "dictor" (
+			"id" INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL UNIQUE,
+			"word" VARCHAR(64) COLLATE NOCASE NOT NULL UNIQUE,
+			"sw" VARCHAR(64) COLLATE NOCASE NOT NULL,
+			"phonetic" VARCHAR(64),
+			"definition" TEXT,
+			"translation" TEXT,
+			"pos" VARCHAR(16),
+			"collins" INTEGER DEFAULT(0),
+			"oxford" INTEGER DEFAULT(0),
+			"bnc" INTEGER DEFAULT(NULL),
+			"coca" INTEGER DEFAULT(NULL),
+			"transformation" TEXT
+		);
+		CREATE UNIQUE INDEX IF NOT EXISTS "dictor_1" ON dictor (id);
+		CREATE UNIQUE INDEX IF NOT EXISTS "dictor_2" ON dictor (word);
+		CREATE INDEX IF NOT EXISTS "dictor_3" ON dictor (sw, word collate nocase);
+		CREATE INDEX IF NOT EXISTS "sd_1" ON dictor (word collate nocase);
+		"""
+
 		self.__conn = sqlite3.connect(self.__dbname, isolation_level="IMMEDIATE")
+		self.__conn.isolation_level = "IMMEDIATE"
+
+		sql = "\n".join([n.strip("\t") for n in sql.split("\n")])
+		sql = sql.strip("\n")
+
+		self.__conn.executescript(sql)
+		self.__conn.commit()
 
 		fields = (
 			"id",

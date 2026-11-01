@@ -1,5 +1,6 @@
 from typing import override
 
+
 import api
 import addonHandler
 import globalPluginHandler
@@ -10,7 +11,7 @@ import ui
 from logHandler import log
 from scriptHandler import script
 
-from .DictTool import INFLECTION, POSITION, Dictionary, Lemmatizer
+from .dictTool import INFLECTION, POSITION, Dictionary, Lemmatizer
 from .generalTool import cleanWord, splitWord
 
 addonHandler.initTranslation()
@@ -96,11 +97,19 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		phonetic: str = f"/{item['phonetic']}/" if item["phonetic"] else ABSENCE
 
 		definition: list[str] = item["definition"].split("\n") if item["definition"] else [ABSENCE]
+		definitionPlain: list[str] = []
 		for i, d in enumerate(definition):
 			if d.startswith("s."):
 				definition[i] = f"a.{d[2:]}"
+				d = definition[i]
+			definitionPlain.append(d)
+			definition[i] = f"<li>{d}</li>"
 
 		translation: list[str] = item["translation"].split("\n") if item["translation"] else [ABSENCE]
+		translationPlain: list[str] = []
+		for i, t in enumerate(translation):
+			translation[i] = f"<li>{t}</li>"
+			translationPlain.append(t)
 
 		pos: list[str] = item["pos"].split("/") if item["pos"] else []
 		position: list[str] = []
@@ -123,14 +132,13 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		else:
 			inflection.append(ABSENCE)
 
-		coca: int = item["coca"]
-		bnc: int = item["bnc"]
+		coca: str = f"<li>COCA: {item['coca']}</li>"
+		bnc: str = f"<li>BNC: {item['bnc']}</li>"
 
-		oxfordLevel: int = item["oxford"]
-		collinsLevel: int = item["collins"]
+		oxfordLevel: str = f"<li>Oxford: {item['oxford']}</li>"
+		collinsLevel: str = f"<li>Collins: {item['collins']}</li>"
 
-		simplification: str = f"{word}: {'; '.join(definition)}\n {'; '.join(translation)}"
-
+		simplification: str = f"{word}: {'; '.join(definitionPlain)}\n {'; '.join(translationPlain)}"
 		detail: str = f"""
 			<h2>{word}</h2>
 			<p>
@@ -142,11 +150,11 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 			</ul>
 			<h3>Definition</h3>
 			<ul>
-			{" ".join([f"<li>{d}</li>" for d in definition])}
+			{" ".join(definition)}
 			</ul>
 			<h3>中文释义</h3>
 			<ul>
-			{" ".join([f"<li>{t}</li" for t in translation])}
+			{" ".join(translation)}
 			</ul>
 			<h3>Position Distribution</h3>
 			<ul>
@@ -154,14 +162,13 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 			</ul>
 			<h3>Word Frequency</h3>
 			<ul>
-			<li>COCA: {coca}</li>
-			<li>BNC: {bnc}</li>
-			</ul
+			{coca}
+			{bnc}
+			</ul>
 			<h3>Level</h3>
 			<ul>
-			<li>Oxford: {oxfordLevel}</lli>
-			<li>Collins: {collinsLevel}</li>
+			{oxfordLevel}
+			{collinsLevel}
 			</ul>
-		"""
-
+"""
 		return (simplification, detail)

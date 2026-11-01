@@ -25,14 +25,14 @@ addon_info = AddonInfo(
 		"A simple dictionary which allows you to look up definitions for the word located under the review cursor within the current navigator object."
 	),
 	# version
-	addon_version="0.1.1",
+	addon_version="0.1.7",
 	# Brief changelog for this version
 	# Translators: what's new content for the add-on version to be shown in the add-on store
 	addon_changelog=_("First version."),
 	# Author(s)
 	addon_author="Jiajun<ofjiajun@gmainl.com>",
 	# URL for the add-on documentation support
-	addon_url=None,
+	addon_url="https://www.jjyyblahblah.xyz",
 	# URL for the add-on repository where the source code can be found
 	addon_sourceURL=None,
 	# Documentation file name
