@@ -42,19 +42,29 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 
 	@script(
 		# Translators: Description
-		description="Get the short definition of the  word of the current navigator object where the review cursor is situated.",
+		description="Spell the last spoken text. Press once, spell the last speech; twice, include character short description.",
 		# Translators: Category
 		category="Dictor",
-		gestures=("kb:NVDA+w", "kb(laptop):NVDA+w"),
+		gestures=("kb:NVDA+shift+/",),
+		speakOnDemand=True,
+	)
+	def script_SpellLastSpokenText(self, gesture: "inputCore.InputGesture"):
+		lastSpeechText = self.getLastSpeechText()
+		if not lastSpeechText:
+			return
+		scriptCount = scriptHandler.getLastScriptRepeatCount()
+		speech.speech.speakSpelling(lastSpeechText, useCharacterDescriptions=scriptCount > 0)
+
+	@script(
+		# Translators: Description
+		description="Get details about the current spoken word. Press once, get the short definition of the word; twice, open a document which contains more information about it.",
+		# Translators: Category
+		category="Dictor",
+		gestures=("kb:NVDA+/",),
 		speakOnDemand=True,
 	)
 	def script_translateLastSpeechWord(self, gesture: "inputCore.InputGesture"):
-		lastSpeech = speech.speech._lastSpeech
-		if lastSpeech is None:
-			return
-
-		lastSpeechSeq, symbolLevel = lastSpeech
-		lastSpeechText = " ".join(i for i in lastSpeechSeq if isinstance(i, str))
+		lastSpeechText = self.getLastSpeechText()
 		words, position = splitWord(lastSpeechText)
 		if not words:
 			return
@@ -76,6 +86,15 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 			ui.message(simplification)
 		else:
 			ui.browseableMessage(detail, title=words[0], isHtml=True)
+
+	def getLastSpeechText(self) -> str:
+		lastSpeech = speech.speech._lastSpeech
+		if lastSpeech is None:
+			return ""
+
+		lastSpeechSeq, symbolLevel = lastSpeech
+		lastSpeechText = " ".join(i for i in lastSpeechSeq if isinstance(i, str))
+		return lastSpeechText if lastSpeechText else ""
 
 	def getDefinition(self, keyword: str) -> tuple[str | None, str | None]:
 		keyword: str = cleanWord(keyword)

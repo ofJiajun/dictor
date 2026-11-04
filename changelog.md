@@ -1,5 +1,10 @@
 # changelog
 
+
+## 0.1.8
+
+Add a jesture to spell the last spoken speech. Press once, spell the last spoken speech; twice, include character description.
+
 ## 0.1.7
 
 Simplify the dictionary and clean some redudant items.
