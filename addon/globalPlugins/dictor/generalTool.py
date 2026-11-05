@@ -5,6 +5,8 @@ separator = re.compile(r"[\u4e00-\uf95a]+|[A-Z]?[a-z]+|[A-Z]+(?=[A-Z][a-z])|[0-9
 clean = re.compile(r"^[^a-zA-Z]*|[^a-zA-Z]*$")
 
 
+# Thanks for clipboardEnhancement add-on:
+# https://github.com/nvdacn/clipboardEnhancement
 def splitWord(text: str):
 	words = []
 	positions = []

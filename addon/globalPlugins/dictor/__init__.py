@@ -42,7 +42,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 
 	@script(
 		# Translators: Description
-		description="Spell the last spoken text. Press once, spell the last speech; twice, include character short description.",
+		description="Spell the last spoken text. Press once, spell the last speech; twice, include character short description at the same.",
 		# Translators: Category
 		category="Dictor",
 		gestures=("kb:NVDA+shift+/",),

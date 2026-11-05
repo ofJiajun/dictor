@@ -1,34 +1,34 @@
 # Dictor
 
-This is a simple dictionary add-on for NVDA. It allows you to look up definitions for the word located under the review cursor within the current navigator object.
+Dictor is a lightweight dictionary add-on for NVDA that provides instant definitions for the last spoken word.
 
-The concept is inspired by NVDA’s built-in feature that provides short descriptions for characters, but this add-on applies that logic to full English words. It enables users to get a quick explanation for a word without needing to switch windows to look it up. Because the add-on relies on a local database, the lookup speed is instantaneous.
+The concept is inspired by NVDA's built-in character description feature, which delivers short definitions for individual characters. Dictor extends this idea to full English words, allowing users to obtain a quick explanation without switching windows or opening a browser. Because the add-on relies on a local database, lookups are instantaneous.
 
-The add-on supports two levels of detail: short and long. In short mode, NVDA simply speaks the English definitions for the word. In long mode, a browsable document pops up, providing more comprehensive details about the target word.
+Two levels of detail are supported: **short** and **long**. In short mode, NVDA simply reads aloud the English and Chinese definitions of the word. In long mode, a browsable window pops up, presenting more comprehensive information about the target word.
 
 ## Operation
 
-Press NVDA + W:
+### NVDA + /
 
-- Once: Reports the definition of the word under the current navigator object.
-- Twice: Opens a browsable message displaying the full details.
+- **Press once**: Reports the definition of the last spoken word. If the utterance contains more than one word, Dictor isolates the first word and looks it up.
+- **Press twice**: Opens a browsable message window displaying the full entry details.
 
-This gesture can be customized in  
+### NVDA + Shift + /
+
+- **Press once**: Spells out the last spoken word letter by letter.
+- **Press twice**: Spells out the last spoken word and provides a character description for each letter.
+
+These gestures can be remapped in  
 `Preferences > Input gestures > Dictor`.
 
 ## About the Dictionary
 
 The dictionary data is sourced from the [ECDICT project](https://github.com/skywind3000/ECDICT).
 
-To accommodate different user needs, I have prepared two versions of the database:
+A few filtering decisions were made during preprocessing. Only entries that include an English definition, a part-of-speech label, or inflectional forms are retained, resulting in a curated set of 672,014 entries. This covers the vast majority of everyday use cases.
 
-- Basic Version: Approximately 182MB, containing over 700,000 entries.
-- Complete Version: Approximately 790MB, supporting queries for over 3 million entries.
+Certain characters have been replaced to improve speech synthesis compatibility. For example, phonetic symbols may render correctly on screen but are not recognized by the speech synthesizer, so they have been substituted with their spoken equivalents.
 
-Due to the large file sizes, these databases are not included in the standard code base. If you need to manually package the plugin, please download the data separately and place it in the following directory:  
-`addon/globalPlugins/Dictor/dicts`
+Additional minor errors have also been corrected along the way. The result is a clean, reliable dictionary database well suited for use with this add-on.
 
-Minor modifications have been made to the original database for better compatibility:
-
-1. Phonetic Symbols: Some phonetic symbols (e.g., 'ә') have been adjusted to be more friendly for common speech synthesizers.
-2. Error Correction: A few character errors were corrected during my usage, though this is not a comprehensive fix. Given the massive size of the data, I believe minor errors are unavoidable.
+All preprocessing utilities are available in `dictTool.py`. Feel free to adapt them to your own needs.
