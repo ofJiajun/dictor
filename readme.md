@@ -31,4 +31,6 @@ Certain characters have been replaced to improve speech synthesis compatibility.
 
 Additional minor errors have also been corrected along the way. The result is a clean, reliable dictionary database well suited for use with this add-on.
 
+**Note**: that these dictionary files are not included in the source code, but provided along with the [released add-on package](https://github.com/ofJiajun/dictor/releases).
+
 All preprocessing utilities are available in `dictTool.py`. Feel free to adapt them to your own needs.

@@ -130,9 +130,6 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		definition: list[str] = item["definition"].split("\n") if item["definition"] else [ABSENCE]
 		shortDefs.append(definition[0])
 		for i, d in enumerate(definition):
-			if d.startswith("s."):
-				definition[i] = f"a.{d[2:]}"
-				d = definition[i]
 			definition[i] = f"<li>{d}</li>"
 
 		translation: list[str] = item["translation"].split("\n") if item["translation"] else [ABSENCE]

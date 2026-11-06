@@ -1,6 +1,5 @@
 # changelog
 
-
 ## 0.1.9
 
 Simplify short definition report.
@@ -11,7 +10,7 @@ Add a jesture to spell the last spoken speech. Press once, spell the last spoken
 
 ## 0.1.7
 
-Simplify the dictionary and clean some redudant items.
+Simplify the dictionary and clean some redundant items.
 
 ## 0.1.6
 
