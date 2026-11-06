@@ -25,7 +25,7 @@ addon_info = AddonInfo(
 		"A simple dictionary which allows you to look up definitions for the word located under the review cursor within the current navigator object."
 	),
 	# version
-	addon_version="0.1.8",
+	addon_version="0.1.9",
 	# Brief changelog for this version
 	# Translators: what's new content for the add-on version to be shown in the add-on store
 	addon_changelog=_("First version."),

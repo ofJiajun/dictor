@@ -1,6 +1,5 @@
 from typing import override
 
-
 import api
 import addonHandler
 import globalPluginHandler
@@ -24,6 +23,8 @@ NO_RESULT: str = "No result"
 class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 	def __init__(self):
 		super().__init__()
+		self.lastSpeech: str = ""
+		self.bufferSpeech: str = ""
 		try:
 			self.dict: Dictionary | None = Dictionary()
 			self.lemma: Lemmatizer | None = Lemmatizer()
@@ -50,10 +51,15 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 	)
 	def script_SpellLastSpokenText(self, gesture: "inputCore.InputGesture"):
 		lastSpeechText = self.getLastSpeechText()
-		if not lastSpeechText:
+		if lastSpeechText != self.lastSpeech:
+			self.bufferSpeech = lastSpeechText
+
+		if not self.bufferSpeech:
 			return
+
 		scriptCount = scriptHandler.getLastScriptRepeatCount()
-		speech.speech.speakSpelling(lastSpeechText, useCharacterDescriptions=scriptCount > 0)
+		speech.speech.speakSpelling(self.bufferSpeech, useCharacterDescriptions=scriptCount > 0)
+		self.lastSpeech = self.getLastSpeechText()
 
 	@script(
 		# Translators: Description
@@ -65,27 +71,31 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 	)
 	def script_translateLastSpeechWord(self, gesture: "inputCore.InputGesture"):
 		lastSpeechText = self.getLastSpeechText()
-		words, position = splitWord(lastSpeechText)
+		if lastSpeechText != self.lastSpeech:
+			self.bufferSpeech = lastSpeechText
+
+		words, position = splitWord(self.bufferSpeech)
 		if not words:
 			return
 
 		try:
-			simplification, detail = self.getDefinition(words[0])
+			concise, detail = self.getDefinition(words[0])
 		except Exception as e:
 			ui.message(NO_RESULT)
 			log.error("Error occured when getting definition.")
 			log.debug(e)
 			return
 
-		if simplification is None or detail is None:
-			ui.message(lastSpeechText)
+		if concise is None or detail is None:
+			ui.message(self.bufferSpeech)
 			return
 
 		scriptCount = scriptHandler.getLastScriptRepeatCount()
 		if scriptCount == 0:
-			ui.message(simplification)
+			ui.message(concise)
 		else:
 			ui.browseableMessage(detail, title=words[0], isHtml=True)
+		self.lastSpeech = self.getLastSpeechText()
 
 	def getLastSpeechText(self) -> str:
 		lastSpeech = speech.speech._lastSpeech
@@ -113,22 +123,22 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 	def getFinalResult(self, item: dict[str, any]) -> tuple[str, str]:
 		word: str = item["word"]
 
+		shortDefs: str = []
+
 		phonetic: str = f"/{item['phonetic']}/" if item["phonetic"] else ABSENCE
 
 		definition: list[str] = item["definition"].split("\n") if item["definition"] else [ABSENCE]
-		definitionPlain: list[str] = []
+		shortDefs.append(definition[0])
 		for i, d in enumerate(definition):
 			if d.startswith("s."):
 				definition[i] = f"a.{d[2:]}"
 				d = definition[i]
-			definitionPlain.append(d)
 			definition[i] = f"<li>{d}</li>"
 
 		translation: list[str] = item["translation"].split("\n") if item["translation"] else [ABSENCE]
-		translationPlain: list[str] = []
+		shortDefs.append(translation[0])
 		for i, t in enumerate(translation):
 			translation[i] = f"<li>{t}</li>"
-			translationPlain.append(t)
 
 		pos: list[str] = item["pos"].split("/") if item["pos"] else []
 		position: list[str] = []
@@ -157,7 +167,8 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		oxfordLevel: str = f"<li>Oxford: {item['oxford']}</li>"
 		collinsLevel: str = f"<li>Collins: {item['collins']}</li>"
 
-		simplification: str = f"{word}: {'; '.join(definitionPlain)}\n {'; '.join(translationPlain)}"
+		concise: str = ";".join(shortDefs)
+
 		detail: str = f"""
 			<h2>{word}</h2>
 			<p>
@@ -190,4 +201,4 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 			{collinsLevel}
 			</ul>
 """
-		return (simplification, detail)
+		return (concise, detail)

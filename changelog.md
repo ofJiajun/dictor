@@ -1,6 +1,10 @@
 # changelog
 
 
+## 0.1.9
+
+Simplify short definition report.
+
 ## 0.1.8
 
 Add a jesture to spell the last spoken speech. Press once, spell the last spoken speech; twice, include character description.
